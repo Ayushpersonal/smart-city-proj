@@ -254,134 +254,159 @@
     </div>
 </div>
 
-<!-- Zoom-Out Button -->
-<button id="zoom-out-btn">Zoom Out</button>
+
 
 <!-- Google Maps API -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA98BsTxR_b23SSonpa8AZ3b1wDaFIZkAw&callback=initMap&v=beta&libraries=marker" async defer></script>
 
 <script>
-    const dustbins = [];
-    const numberOfDustbins = 100;
-    let fillLevels = {};
-    let markers = [];
-    let map;
-    let lastClicked = null;
-    let hoverText = null;
+let map;
+let markers = [];
+let fillLevels = {};
+let dustbins = [];
+let hoverText = null;
+const numberOfDustbins = 100;
 
-    function generateDustbins() {
-        for (let i = 0; i < numberOfDustbins; i++) {
-            let lat = 28.5500 + (Math.random() * 0.1);  // Random latitude in Delhi's approximate range
-            let lng = 77.1000 + (Math.random() * 0.1);  // Random longitude in Delhi's approximate range
-            dustbins.push({ id: i + 1, lat, lng, name: `Dustbin ${i + 1}` });
-        }
+function generateDustbins() {
+    for (let i = 0; i < numberOfDustbins; i++) {
+        let lat = 28.5500 + (Math.random() * 0.1); // Random latitude in Delhi's approximate range
+        let lng = 77.1000 + (Math.random() * 0.1); // Random longitude in Delhi's approximate range
+        let nearbyLocation = `Near Market Area ${Math.floor(Math.random() * 10) + 1}`; // Example nearby location
+        dustbins.push({ id: i + 1, lat, lng, name: `Dustbin ${i + 1}`, location: nearbyLocation });
     }
+}
 
-    function generateFillLevels() {
-        dustbins.forEach(dustbin => {
-            fillLevels[dustbin.id] = Math.floor(Math.random() * 101); // Random fill percentage
-        });
-    }
+function generateFillLevels() {
+    dustbins.forEach(dustbin => {
+        fillLevels[dustbin.id] = Math.floor(Math.random() * 101); // Random fill percentage
+    });
+}
 
-    function initMap() {
-        generateDustbins();
-        generateFillLevels();
+function initMap() {
+    generateDustbins();
+    generateFillLevels();
 
-        map = new google.maps.Map(document.getElementById("map"), {
-            center: { lat: 28.7500, lng: 77.5000 },
-            zoom: 13
-        });
+    // Set default map center
+    const mapCenter = { lat: 28.5500, lng: 77.1000 };
 
-        hoverText = document.createElement('div');
-        hoverText.className = 'hover-text';
-        document.body.appendChild(hoverText);
+    map = new google.maps.Map(document.getElementById("map"), {
+        center: mapCenter,
+        zoom: 13,
+    });
 
-        dustbins.forEach(dustbin => {
-            const fillLevel = fillLevels[dustbin.id];
-            let iconUrl = fillLevel < 70 ? 'https://cdn-icons-png.freepik.com/256/8079/8079796.png?ga=GA1.1.2025384137.1729537570&semt=ais_hybrid' : 'https://cdn-icons-png.freepik.com/256/17509/17509145.png?ga=GA1.1.2025384137.1729537570&semt=ais_hybrid';
+    hoverText = document.createElement('div');
+    hoverText.className = 'hover-text';
+    document.body.appendChild(hoverText);
 
-            const marker = new google.maps.Marker({
-                position: { lat: dustbin.lat, lng: dustbin.lng },
-                map: map,
-                title: dustbin.name,
-                icon: {
-                    url: iconUrl,
-                    scaledSize: new google.maps.Size(40, 40) // Ensure all icons are same size
-                }
-            });
+    dustbins.forEach(dustbin => {
+        const fillLevel = fillLevels[dustbin.id];
 
-            const infoWindow = new google.maps.InfoWindow({
-                content: `<h3>${dustbin.name}</h3><p>Fill level: ${fillLevel}%</p>`
-            });
+        let iconUrl = fillLevel < 70 
+            ? 'https://cdn-icons-png.freepik.com/256/8079/8079796.png?ga=GA1.1.2025384137.1729537570&semt=ais_hybrid' 
+            : 'https://cdn-icons-png.freepik.com/256/17509/17509145.png?ga=GA1.1.2025384137.1729537570&semt=ais_hybrid';
 
-            marker.addListener('mouseover', () => {
-                hoverText.style.display = 'block';
-                hoverText.style.left = `${event.clientX + 10}px`;
-                hoverText.style.top = `${event.clientY + 10}px`;
-                hoverText.innerHTML = `${dustbin.name} - ${fillLevel}%`;
-            });
-
-            marker.addListener('mouseout', () => {
-                hoverText.style.display = 'none';
-            });
-
-            marker.addListener('click', function () {
-                showDetails(dustbin.id);
-                map.setZoom(16);
-                map.setCenter(marker.getPosition());
-                lastClicked = marker;
-            });
-
-            markers.push(marker);
-        });
-
-        document.getElementById("live-monitor-btn").addEventListener('click', openLiveMonitoring);
-        document.getElementById("zoom-out-btn").addEventListener('click', zoomOut);
-
-        dustbins.forEach(dustbin => {
-            const li = document.createElement("li");
-            li.textContent = dustbin.name + ' - ' + fillLevels[dustbin.id] + '%';
-            li.style.color = fillLevels[dustbin.id] > 70 ? 'red' : 'green';
-            li.addEventListener('click', () => showDetails(dustbin.id));
-            li.addEventListener('dblclick', () => zoomOutFromText(dustbin.id));
-            document.getElementById("dustbin-list").appendChild(li);
-        });
-    }
-
-    function showDetails(dustbinId) {
-        // Hide previous details if any
-        const previousDetails = document.querySelector('.highlight');
-        if (previousDetails) {
-            previousDetails.classList.remove('highlight');
+        let iconSize = { width: 40, height: 40 }; // Default size
+        if (fillLevel === 100) {
+            iconSize = { width: 50, height: 50 }; // Increase size by 10%
+            iconUrl = 'https://cdn-icons-png.freepik.com/256/17509/17509145.png?ga=GA1.1.2025384137.1729537570&semt=ais_hybrid'; // Same red icon
         }
 
-        const detailsElement = document.querySelector(`#dustbin-list li:nth-child(${dustbinId})`);
-        detailsElement.classList.add('highlight');
+        const marker = new google.maps.Marker({
+            position: { lat: dustbin.lat, lng: dustbin.lng },
+            map: map,
+            title: dustbin.name,
+            icon: {
+                url: iconUrl,
+                scaledSize: new google.maps.Size(iconSize.width, iconSize.height),
+                labelOrigin: new google.maps.Point(20, -10)
+            },
+            zIndex: fillLevel === 100 ? 2 : 1
+        });
 
-        const marker = markers.find(m => m.title === dustbins.find(d => d.id === dustbinId).name);
-        map.setZoom(16);
-        map.setCenter(marker.getPosition());
-    }
+        // InfoWindow on marker click
+        const infoWindow = new google.maps.InfoWindow({
+            content: `
+                <h3>${dustbin.name}</h3>
+                <p>Fill level: ${fillLevel}%</p>
+                <p>Location: Nearby landmark information here</p>
+            `
+        });
 
-    function openLiveMonitoring() {
-        document.getElementById("popup-overlay").style.display = "flex";
-    }
+        marker.addListener('click', () => {
+            infoWindow.open(map, marker);
+        });
 
-    function closePopup() {
-        document.getElementById("popup-overlay").style.display = "none";
-    }
+        markers.push(marker);
+    });
 
-    function zoomOut() {
-        map.setZoom(13);
-    }
-
-    function zoomOutFromText(dustbinId) {
-        map.setZoom(13);
-    }
-
+    document.getElementById("live-monitor-btn").addEventListener('click', openLiveMonitoring);
     document.getElementById("close-popup").addEventListener('click', closePopup);
 
-    window.initMap = initMap;
+    // Handle Zoom In (Click) and Zoom Out (Double Click) functionality
+    google.maps.event.addListener(map, 'click', function () {
+        let currentZoom = map.getZoom();
+        map.setZoom(currentZoom + 1); // Zoom In on Click
+    });
+
+    google.maps.event.addListener(map, 'dblclick', function () {
+        let currentZoom = map.getZoom();
+        map.setZoom(currentZoom - 1); // Zoom Out on Double Click
+    });
+
+    // Populate the dustbin list
+    dustbins.forEach(dustbin => {
+        const li = document.createElement("li");
+        li.textContent = `${dustbin.name} - ${fillLevels[dustbin.id]}%`;
+        li.style.color = fillLevels[dustbin.id] > 70 ? 'red' : 'green';
+        li.addEventListener('click', () => showDetails(dustbin.id));
+        document.getElementById("dustbin-list").appendChild(li);
+    });
+}
+
+function showDetails(dustbinId) {
+    const dustbin = dustbins.find(d => d.id === dustbinId);
+    const marker = markers.find(m => m.title === dustbin.name);
+    if (!dustbin || !marker) return;
+
+    const previousDetails = document.querySelector('.highlight');
+    if (previousDetails) {
+        previousDetails.classList.remove('highlight');
+    }
+    const detailsElement = document.querySelector(`#dustbin-list li:nth-child(${dustbinId})`);
+    if (detailsElement) {
+        detailsElement.classList.add('highlight');
+    }
+
+    // Pan to marker and zoom in
+    map.panTo(marker.getPosition());
+    map.setZoom(16);
+
+    // Optional: Open info window
+    markers.forEach(m => m.infoWindow?.close());
+    const infoWindow = new google.maps.InfoWindow({
+        content: `
+            <h3>${dustbin.name}</h3>
+            <p>Fill level: ${fillLevels[dustbinId]}%</p>
+            <p>Location: Nearby landmark information here</p>
+        `
+    });
+    infoWindow.open(map, marker);
+    marker.infoWindow = infoWindow;
+}
+
+function openLiveMonitoring() {
+    document.getElementById("popup-overlay").style.display = "flex";
+}
+
+function closePopup() {
+    document.getElementById("popup-overlay").style.display = "none";
+}
+
+window.initMap = initMap;
+
+
+
+
 </script>
 
 </body>
